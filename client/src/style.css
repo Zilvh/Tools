@@ -1,0 +1,8 @@
+/* 1. Import font Google di paling atas */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+
+/* 2. Deklarasikan fondasi Tailwind CSS. Urutan ini SANGAT PENTING. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
