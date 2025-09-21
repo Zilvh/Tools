@@ -1,0 +1,8 @@
+# Abaikan semua folder node_modules
+**/node_modules
+
+# Abaikan file environment (jika ada nanti)
+.env
+
+# Abaikan folder build
+dist
