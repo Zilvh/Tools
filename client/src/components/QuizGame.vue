@@ -62,7 +62,7 @@
             :key="index"
             @click="handleAnswer(index)"
             :disabled="isAnswered"
-            class="bg-gradient-to-r from-hima-red to-red-600 hover:from-red-600 hover:to-hima-red text-white py-3 px-6 rounded-lg shadow-md transform transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            :class="getButtonClass(index)"
           >
             {{ option }}
           </button>
@@ -112,46 +112,57 @@ export default {
       showResult: false,
       userName: '',
       isAnswered: false, // State untuk mencegah klik ganda
+      selectedAnswerIndex: null, // State untuk feedback visual
     };
   },
   methods: {
     shuffleArray(array) {
       return array.sort(() => Math.random() - 0.5);
     },
+    getButtonClass(index) {
+        const baseClass = "text-white py-3 px-6 rounded-lg shadow-md transform transition-all";
+        // Sebelum jawaban dipilih
+        if (!this.isAnswered) {
+            return `${baseClass} bg-gradient-to-r from-hima-red to-red-600 hover:from-red-600 hover:to-hima-red hover:scale-105 active:scale-95`;
+        }
+        // Setelah jawaban dipilih
+        const isCorrect = index === this.shuffledQuestions[this.currentQuestion].correct;
+        if (isCorrect) {
+            return `${baseClass} bg-gradient-to-r from-green-500 to-emerald-600 scale-105`; // Jawaban benar (selalu hijau)
+        }
+        if (index === this.selectedAnswerIndex) {
+            return `${baseClass} bg-gradient-to-r from-red-700 to-red-800`; // Jawaban salah yang dipilih (merah)
+        }
+        return `${baseClass} bg-gray-600 opacity-50`; // Pilihan salah lainnya (abu-abu)
+    },
     async handleAnswer(selectedIndex) {
-      if (this.isAnswered) return; // Mencegah jawaban ganda
+      if (this.isAnswered) return;
       this.isAnswered = true;
+      this.selectedAnswerIndex = selectedIndex;
 
-      // Cek jawaban benar
       const isCorrect = this.shuffledQuestions[this.currentQuestion].correct === selectedIndex;
       if (isCorrect) {
         this.score += 1;
       }
 
-      // Cek apakah ini pertanyaan terakhir
       const isLastQuestion = this.currentQuestion + 1 >= this.shuffledQuestions.length;
 
-      if (isLastQuestion) {
-        // Logika untuk pertanyaan terakhir
-        try {
-          // Gunakan environment variable untuk URL API
-          const apiUrl = `${import.meta.env.VITE_API_URL}/api/quiz`;
-          await axios.post(apiUrl, { name: this.userName || 'Anonymous', score: this.score });
-        } catch (error) {
-          console.error("Gagal mengirim skor:", error);
-          // Opsi: Tampilkan pesan error ke pengguna jika API gagal
-        }
-        // Tunggu sebentar sebelum menampilkan hasil
-        setTimeout(() => {
+      // Beri jeda 2 detik untuk menunjukkan hasil jawaban sebelum lanjut
+      setTimeout(async () => {
+        if (isLastQuestion) {
+          try {
+            const apiUrl = `${import.meta.env.VITE_API_URL}/api/quiz`;
+            await axios.post(apiUrl, { name: this.userName || 'Anonymous', score: this.score });
+          } catch (error) {
+            console.error("Gagal mengirim skor:", error);
+          }
           this.showResult = true;
-        }, 1000);
-      } else {
-        // Logika untuk lanjut ke pertanyaan berikutnya
-        setTimeout(() => {
+        } else {
           this.currentQuestion += 1;
-          this.isAnswered = false; // Izinkan menjawab lagi untuk pertanyaan baru
-        }, 1000); // Beri jeda 1 detik
-      }
+          this.isAnswered = false;
+          this.selectedAnswerIndex = null; // Reset untuk pertanyaan berikutnya
+        }
+      }, 2000); 
     },
     resetQuiz() {
       this.shuffledQuestions = this.shuffleArray([...questions]);
@@ -160,6 +171,7 @@ export default {
       this.showResult = false;
       this.userName = '';
       this.isAnswered = false;
+      this.selectedAnswerIndex = null;
     },
   },
 };
