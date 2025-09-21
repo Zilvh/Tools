@@ -126,7 +126,7 @@ export default {
             this.currentQuestion += 1;
         }, this.shuffledQuestions[this.currentQuestion].correct === index ? 1000 : 0);
       } else {
-        await axios.post('https://zilvh.github.io/api/quiz', { name: this.userName, score: this.score });
+        await axios.post('https://hima-rpl-server-abcde.onrender.com/api/quiz', { name: this.userName, score: this.score });
         this.showResult = true;
       }
     },
