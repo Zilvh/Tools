@@ -11,7 +11,7 @@
       <h2 class="text-3xl font-bold mb-6 text-center">🎯 Quiz Interaktif HIMA RPL</h2>
 
       <!-- Progress Bar -->
-      <div v-if="!showResult" class="mb-6">
+      <div v-if="!showResult && shuffledQuestions.length > 0" class="mb-6">
         <div class="w-full bg-white/20 rounded-full h-3 overflow-hidden">
           <div
             class="bg-hima-red h-3 transition-all duration-500"
@@ -24,7 +24,7 @@
       </div>
 
       <!-- Quiz -->
-      <div v-if="!showResult" class="text-center">
+      <div v-if="!showResult && shuffledQuestions[currentQuestion]" class="text-center">
         <input
           v-model="userName"
           type="text"
@@ -50,16 +50,19 @@
           </div>
         </div>
 
-        <!-- Pertanyaan -->
-        <h3 class="text-xl font-semibold mb-6">{{ shuffledQuestions[currentQuestion].question }}</h3>
+        <!-- Pertanyaan: Ditambahkan v-if untuk keamanan -->
+        <h3 v-if="shuffledQuestions[currentQuestion]" class="text-xl font-semibold mb-6">
+          {{ shuffledQuestions[currentQuestion].question }}
+        </h3>
 
-        <!-- Jawaban -->
-        <div class="grid grid-cols-1 gap-4">
+        <!-- Jawaban: Ditambahkan v-if untuk keamanan -->
+        <div v-if="shuffledQuestions[currentQuestion]" class="grid grid-cols-1 gap-4">
           <button
             v-for="(option, index) in shuffledQuestions[currentQuestion].options"
             :key="index"
             @click="handleAnswer(index)"
-            class="bg-gradient-to-r from-hima-red to-red-600 hover:from-red-600 hover:to-hima-red text-white py-3 px-6 rounded-lg shadow-md transform transition-all hover:scale-105 active:scale-95"
+            :disabled="isAnswered"
+            class="bg-gradient-to-r from-hima-red to-red-600 hover:from-red-600 hover:to-hima-red text-white py-3 px-6 rounded-lg shadow-md transform transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {{ option }}
           </button>
@@ -70,7 +73,7 @@
       <div v-else class="text-center">
         <img src="/mascot.png" alt="Maskot HIMA" class="h-32 mx-auto mb-4" />
         <h3 class="text-2xl font-bold mb-4">🎉 Skor Anda: {{ score }}/{{ shuffledQuestions.length }}</h3>
-        <p class="mb-6">Selamat, {{ userName }}! Skor Anda telah disimpan. 🎁</p>
+        <p class="mb-6">Selamat, {{ userName || 'Peserta' }}! Skor Anda telah disimpan. 🎁</p>
         <button
           @click="resetQuiz"
           class="bg-gradient-to-r from-hima-red to-red-600 hover:from-red-600 hover:to-hima-red text-white py-3 px-6 rounded-lg shadow-md transform transition-all hover:scale-105 active:scale-95"
@@ -82,10 +85,10 @@
   </section>
 </template>
 
-
 <script>
 import axios from 'axios';
 
+// Daftar pertanyaan ditaruh di luar untuk performa yang lebih baik
 const questions = [
   { id: 1, question: 'Apa kepanjangan dari RPL?', options: ['Rekayasa Perangkat Lunak', 'Rekayasa Perangkat Keras', 'Riset Pengembangan Lanjut'], correct: 0 },
   { id: 2, question: 'Tahun berdiri HIMA RPL?', options: ['2020', '2021', '2022'], correct: 1 },
@@ -108,26 +111,46 @@ export default {
       score: 0,
       showResult: false,
       userName: '',
-      showCorrect: false,
+      isAnswered: false, // State untuk mencegah klik ganda
     };
   },
   methods: {
     shuffleArray(array) {
       return array.sort(() => Math.random() - 0.5);
     },
-    async handleAnswer(index) {
-      if (this.shuffledQuestions[this.currentQuestion].correct === index) {
+    async handleAnswer(selectedIndex) {
+      if (this.isAnswered) return; // Mencegah jawaban ganda
+      this.isAnswered = true;
+
+      // Cek jawaban benar
+      const isCorrect = this.shuffledQuestions[this.currentQuestion].correct === selectedIndex;
+      if (isCorrect) {
         this.score += 1;
-        this.showCorrect = true;
-        setTimeout(() => (this.showCorrect = false), 1000);
       }
-      if (this.currentQuestion + 1 < this.shuffledQuestions.length) {
+
+      // Cek apakah ini pertanyaan terakhir
+      const isLastQuestion = this.currentQuestion + 1 >= this.shuffledQuestions.length;
+
+      if (isLastQuestion) {
+        // Logika untuk pertanyaan terakhir
+        try {
+          // Gunakan environment variable untuk URL API
+          const apiUrl = `${import.meta.env.VITE_API_URL}/api/quiz`;
+          await axios.post(apiUrl, { name: this.userName || 'Anonymous', score: this.score });
+        } catch (error) {
+          console.error("Gagal mengirim skor:", error);
+          // Opsi: Tampilkan pesan error ke pengguna jika API gagal
+        }
+        // Tunggu sebentar sebelum menampilkan hasil
         setTimeout(() => {
-            this.currentQuestion += 1;
-        }, this.shuffledQuestions[this.currentQuestion].correct === index ? 1000 : 0);
+          this.showResult = true;
+        }, 1000);
       } else {
-        await axios.post('https://hima-rpl-server-abcde.onrender.com/api/quiz', { name: this.userName, score: this.score });
-        this.showResult = true;
+        // Logika untuk lanjut ke pertanyaan berikutnya
+        setTimeout(() => {
+          this.currentQuestion += 1;
+          this.isAnswered = false; // Izinkan menjawab lagi untuk pertanyaan baru
+        }, 1000); // Beri jeda 1 detik
       }
     },
     resetQuiz() {
@@ -136,6 +159,7 @@ export default {
       this.score = 0;
       this.showResult = false;
       this.userName = '';
+      this.isAnswered = false;
     },
   },
 };
